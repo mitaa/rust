@@ -17,7 +17,7 @@ use collections::Collection;
 use option::None;
 use result::{Err, Ok};
 use io;
-use io::{Reader, Writer, Seek, Buffer, IoError, SeekStyle, IoResult, AsRefReader, AsRefWriter};
+use io::{Reader, Writer, Seek, Buffer, IoError, SeekStyle, IoResult};
 use slice;
 use slice::AsSlice;
 use vec::Vec;
@@ -92,8 +92,6 @@ impl Writer for MemWriter {
     }
 }
 
-impl AsRefWriter for MemWriter {}
-
 /// Reads from an owned byte vector
 ///
 /// # Example
@@ -159,8 +157,6 @@ impl Reader for MemReader {
         return Ok(write_len);
     }
 }
-
-impl AsRefReader for MemReader {}
 
 impl Seek for MemReader {
     #[inline]
@@ -307,8 +303,6 @@ impl<'a> Reader for BufReader<'a> {
         return Ok(write_len);
      }
 }
-
-impl<'a> AsRefReader for BufReader<'a> {}
 
 impl<'a> Seek for BufReader<'a> {
     #[inline]
