@@ -179,7 +179,7 @@ pub fn check_object_safety(tcx: &ty::ctxt, object_trait: &ty::TyTrait, span: Spa
          */
         let mut msgs = Vec::new();
 
-        let method_name = method.ident.repr(tcx);
+        let method_name = method.name.repr(tcx);
 
         match method.explicit_self {
             ty::ByValueExplicitSelfCategory => { // reason (a) above
