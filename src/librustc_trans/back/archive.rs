@@ -181,11 +181,8 @@ impl<'a> ArchiveBuilder<'a> {
                       -> io::Result<()>
         where F: FnMut(&str) -> bool + 'static
     {
-        let archive = match ArchiveRO::open(archive) {
-            Some(ar) => ar,
-            None => return Err(io::Error::new(io::ErrorKind::Other,
-                                              "failed to open archive")),
-        };
+        let archive = try!(ArchiveRO::open(archive)
+            .ok_or(io::Error::new(io::ErrorKind::Other, "failed to open archive")));
         self.additions.push(Addition::Archive {
             archive: archive,
             archive_name: name.to_string(),

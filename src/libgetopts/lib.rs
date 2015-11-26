@@ -618,10 +618,8 @@ pub fn getopts(args: &[String], optgrps: &[OptGroup]) -> Result {
                     // allows options such as -L/usr/local/lib/foo to be
                     // interpreted correctly
 
-                    let opt_id = match find_opt(&opts, opt.clone()) {
-                        Some(id) => id,
-                        None => return Err(UnrecognizedOption(opt.to_string())),
-                    };
+                    let opt_id = try!(find_opt(&opts, opt.clone())
+                                          .ok_or(UnrecognizedOption(opt.to_string())));
 
                     names.push(opt);
 
@@ -642,10 +640,9 @@ pub fn getopts(args: &[String], optgrps: &[OptGroup]) -> Result {
             let mut name_pos = 0;
             for nm in &names {
                 name_pos += 1;
-                let optid = match find_opt(&opts, (*nm).clone()) {
-                    Some(id) => id,
-                    None => return Err(UnrecognizedOption(nm.to_string())),
-                };
+                let optid = try!(find_opt(&opts, (*nm).clone())
+                                     .ok_or(UnrecognizedOption(nm.to_string())));
+
                 match opts[optid].hasarg {
                     No => {
                         if name_pos == names.len() && !i_arg.is_none() {

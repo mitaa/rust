@@ -99,9 +99,6 @@ impl<T: Encodable> Encodable for OwnedSlice<T> {
 
 impl<T: Decodable> Decodable for OwnedSlice<T> {
     fn decode<D: Decoder>(d: &mut D) -> Result<OwnedSlice<T>, D::Error> {
-        Ok(OwnedSlice::from_vec(match Decodable::decode(d) {
-            Ok(t) => t,
-            Err(e) => return Err(e)
-        }))
+        Ok(OwnedSlice::from_vec(try!(Decodable::decode(d))))
     }
 }

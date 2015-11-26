@@ -305,10 +305,7 @@ pub fn error_str(error: ErrorCode) -> &'static str {
 
 /// Shortcut function to decode a JSON `&str` into an object
 pub fn decode<T: ::Decodable>(s: &str) -> DecodeResult<T> {
-    let json = match from_str(s) {
-        Ok(x) => x,
-        Err(e) => return Err(ParseError(e))
-    };
+    let json = try!(from_str(s).map_err(|e|ParseError(e)));
 
     let mut decoder = Decoder::new(json);
     ::Decodable::decode(&mut decoder)
@@ -2062,10 +2059,7 @@ pub fn from_reader(rdr: &mut Read) -> Result<Json, BuilderError> {
         Ok(c)  => c,
         Err(e) => return Err(io_error_to_error(e))
     };
-    let s = match str::from_utf8(&contents).ok() {
-        Some(s) => s,
-        _       => return Err(SyntaxError(NotUtf8, 0, 0))
-    };
+    let s = try!(str::from_utf8(&contents).map_err(|_| SyntaxError(NotUtf8, 0, 0)));
     let mut builder = Builder::new(s.chars());
     builder.build()
 }
@@ -2232,10 +2226,8 @@ impl ::Decoder for Decoder {
                 return Err(ExpectedError("String or Object".to_owned(), format!("{}", json)))
             }
         };
-        let idx = match names.iter().position(|n| *n == &name[..]) {
-            Some(idx) => idx,
-            None => return Err(UnknownVariantError(name))
-        };
+        let idx = try!(names.iter().position(|n| *n == &name[..])
+            .ok_or(UnknownVariantError(name)));
         f(self, idx)
     }
 
@@ -2284,10 +2276,7 @@ impl ::Decoder for Decoder {
                 // Add a Null and try to parse it as an Option<_>
                 // to get None as a default value.
                 self.stack.push(Json::Null);
-                match f(self) {
-                    Ok(x) => x,
-                    Err(_) => return Err(MissingFieldError(name.to_string())),
-                }
+                try!(f(self).map_err(|_|MissingFieldError(name.to_string())))
             },
             Some(json) => {
                 self.stack.push(json);

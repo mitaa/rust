@@ -941,10 +941,10 @@ pub fn eval_const_expr_partial<'tcx>(tcx: &ty::ctxt<'tcx>,
         };
 
         let val = try!(eval_const_expr_partial(tcx, &**base, base_hint, fn_args));
-        match cast_const(tcx, val, ety) {
-            Ok(val) => val,
-            Err(kind) => return Err(ConstEvalErr { span: e.span, kind: kind }),
-        }
+        try!(cast_const(tcx, val, ety).map_err(|kind| ConstEvalErr {
+            span: e.span,
+            kind: kind,
+        }))
       }
       hir::ExprPath(..) => {
           let opt_def = if let Some(def) = tcx.def_map.borrow().get(&e.id) {

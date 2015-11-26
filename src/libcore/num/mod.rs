@@ -1881,34 +1881,16 @@ fn from_str_radix<T: FromStrRadixHelper>(src: &str, radix: u32)
     if is_positive {
         // The number is positive
         for &c in digits {
-            let x = match (c as char).to_digit(radix) {
-                Some(x) => x,
-                None => return Err(PIE { kind: InvalidDigit }),
-            };
-            result = match result.checked_mul(radix) {
-                Some(result) => result,
-                None => return Err(PIE { kind: Overflow }),
-            };
-            result = match result.checked_add(x) {
-                Some(result) => result,
-                None => return Err(PIE { kind: Overflow }),
-            };
+            let x = try!((c as char).to_digit(radix).ok_or(PIE { kind: InvalidDigit }));
+            result = try!(result.checked_mul(radix).ok_or(PIE { kind: Overflow }));
+            result = try!(result.checked_add(x).ok_or(PIE { kind: Overflow }));
         }
     } else {
         // The number is negative
         for &c in digits {
-            let x = match (c as char).to_digit(radix) {
-                Some(x) => x,
-                None => return Err(PIE { kind: InvalidDigit }),
-            };
-            result = match result.checked_mul(radix) {
-                Some(result) => result,
-                None => return Err(PIE { kind: Underflow }),
-            };
-            result = match result.checked_sub(x) {
-                Some(result) => result,
-                None => return Err(PIE { kind: Underflow }),
-            };
+            let x = try!((c as char).to_digit(radix).ok_or(PIE { kind: InvalidDigit }));
+            result = try!(result.checked_mul(radix).ok_or(PIE { kind: Underflow }));
+            result = try!(result.checked_sub(x).ok_or(PIE { kind: Underflow }));
         }
     }
     Ok(result)
