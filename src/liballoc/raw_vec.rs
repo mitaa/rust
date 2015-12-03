@@ -30,7 +30,7 @@ use core::ops::Drop;
 /// * Avoids freeing heap::EMPTY
 /// * Contains a ptr::Unique and thus endows the user with all related benefits
 ///
-/// This type does not in anyway inspect the memory that it manages. When dropped it *will*
+/// This type does not in any way inspect the memory that it manages. When dropped it *will*
 /// free its memory, but it *won't* try to Drop its contents. It is up to the user of RawVec
 /// to handle the actual things *stored* inside of a RawVec.
 ///
