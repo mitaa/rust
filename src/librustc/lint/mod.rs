@@ -44,7 +44,7 @@ pub use lint::context::{LateContext, EarlyContext, LintContext, LintStore,
                         raw_struct_lint, GatherNodeLevels, FutureIncompatibleInfo};
 
 /// Specification of a single lint.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Lint {
     /// A string identifier for the lint.
     ///

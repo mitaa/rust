@@ -2368,7 +2368,7 @@ fn enum_variant_size_lint(ccx: &CrateContext, enum_def: &hir::EnumDef, sp: Span,
                               &ccx.tcx().sess.lint_store.borrow(),
                               lint::builtin::VARIANT_SIZE_DIFFERENCES,
                               *lvlsrc.unwrap(),
-                              Some(sp),
+                              Some(sp.into()),
                               &format!("enum variant is more than three times larger ({} bytes) \
                                         than the next largest (ignoring padding)",
                                        largest))

@@ -41,7 +41,7 @@ use std::default::Default as StdDefault;
 use std::mem;
 use syntax::ast_util::{self, IdVisitingOperation};
 use syntax::attr::{self, AttrMetaMethods};
-use syntax::codemap::Span;
+use syntax::codemap::{Span, MultiSpan};
 use syntax::errors::DiagnosticBuilder;
 use syntax::parse::token::InternedString;
 use syntax::ast;
@@ -309,6 +309,9 @@ pub struct LateContext<'a, 'tcx: 'a> {
     /// The store of registered lints.
     lints: LintStore,
 
+    /// Sink to collect and fold consecutive lints together
+    collapsed_lints: Vec<(LintId, String, LevelSource, Vec<Span>)>,
+
     /// When recursing into an attributed node of the ast which modifies lint
     /// levels, this stack keeps track of the previous lint levels of whatever
     /// was modified.
@@ -330,6 +333,9 @@ pub struct EarlyContext<'a> {
 
     /// The store of registered lints.
     lints: LintStore,
+
+    /// Sink to collect and fold consecutive lints together
+    collapsed_lints: Vec<(LintId, String, LevelSource, Vec<Span>)>,
 
     /// When recursing into an attributed node of the ast which modifies lint
     /// levels, this stack keeps track of the previous lint levels of whatever
@@ -402,7 +408,7 @@ pub fn raw_emit_lint(sess: &Session,
                      lints: &LintStore,
                      lint: &'static Lint,
                      lvlsrc: LevelSource,
-                     span: Option<Span>,
+                     span: Option<MultiSpan>,
                      msg: &str) {
     raw_struct_lint(sess, lints, lint, lvlsrc, span, msg).emit();
 }
@@ -411,7 +417,7 @@ pub fn raw_struct_lint<'a>(sess: &'a Session,
                            lints: &LintStore,
                            lint: &'static Lint,
                            lvlsrc: LevelSource,
-                           span: Option<Span>,
+                           span: Option<MultiSpan>,
                            msg: &str)
                            -> DiagnosticBuilder<'a> {
     let (mut level, source) = lvlsrc;
@@ -442,7 +448,7 @@ pub fn raw_struct_lint<'a>(sess: &'a Session,
     // For purposes of printing, we can treat forbid as deny.
     if level == Forbid { level = Deny; }
 
-    let mut err = match (level, span) {
+    let mut err = match (level, span.clone()) {
         (Warn, Some(sp)) => sess.struct_span_warn(sp, &msg[..]),
         (Warn, None)     => sess.struct_warn(&msg[..]),
         (Deny, Some(sp)) => sess.struct_span_err(sp, &msg[..]),
@@ -458,7 +464,7 @@ pub fn raw_struct_lint<'a>(sess: &'a Session,
         let citation = format!("for more information, see {}",
                                future_incompatible.reference);
         if let Some(sp) = span {
-            err.fileline_warn(sp, &explanation);
+            err.fileline_warn(sp.clone(), &explanation);
             err.fileline_note(sp, &citation);
         } else {
             err.warn(&explanation);
@@ -497,31 +503,39 @@ pub trait LintContext: Sized {
         })
     }
 
-    fn lookup_and_emit(&self, lint: &'static Lint, span: Option<Span>, msg: &str) {
+    fn lookup_and_emit<S: Into<MultiSpan>>(&self,
+                                           lint: &'static Lint,
+                                           span: Option<S>,
+                                           msg: &str) {
         let (level, src) = match self.level_src(lint) {
             None => return,
             Some(pair) => pair,
         };
 
-        raw_emit_lint(&self.sess(), self.lints(), lint, (level, src), span, msg);
+        raw_emit_lint(&self.sess(), self.lints(), lint, (level, src), span.map(|s| s.into()), msg);
     }
 
-    fn lookup(&self,
-              lint: &'static Lint,
-              span: Option<Span>,
-              msg: &str)
-              -> DiagnosticBuilder {
+    fn lookup<S: Into<MultiSpan>>(&self,
+                                  lint: &'static Lint,
+                                  span: Option<S>,
+                                  msg: &str)
+                                  -> DiagnosticBuilder {
         let (level, src) = match self.level_src(lint) {
             None => return self.sess().diagnostic().struct_dummy(),
             Some(pair) => pair,
         };
 
-        raw_struct_lint(&self.sess(), self.lints(), lint, (level, src), span, msg)
+        raw_struct_lint(&self.sess(),
+                        self.lints(),
+                        lint,
+                        (level, src),
+                        span.map(|s| s.into()),
+                        msg)
     }
 
     /// Emit a lint at the appropriate level, for a particular span.
-    fn span_lint(&self, lint: &'static Lint, span: Span, msg: &str) {
-        self.lookup_and_emit(lint, Some(span), msg);
+    fn span_lint<S: Into<MultiSpan>>(&self, lint: &'static Lint, span: S, msg: &str) {
+        self.lookup_and_emit(lint, Some(span.into()), msg);
     }
 
     fn struct_span_lint(&self,
@@ -559,7 +573,7 @@ pub trait LintContext: Sized {
 
     /// Emit a lint at the appropriate level, with no associated span.
     fn lint(&self, lint: &'static Lint, msg: &str) {
-        self.lookup_and_emit(lint, None, msg);
+        self.lookup_and_emit(lint, None::<MultiSpan>, msg);
     }
 
     /// Merge the lints specified by any lint attributes into the
@@ -646,6 +660,7 @@ impl<'a> EarlyContext<'a> {
             sess: sess,
             krate: krate,
             lints: lint_store,
+            collapsed_lints: vec![],
             level_stack: vec![],
         }
     }
@@ -674,6 +689,7 @@ impl<'a, 'tcx> LateContext<'a, 'tcx> {
             krate: krate,
             access_levels: access_levels,
             lints: lint_store,
+            collapsed_lints: vec![],
             level_stack: vec![],
             node_levels: RefCell::new(FnvHashMap()),
         }
@@ -1069,25 +1085,43 @@ impl<'a, 'v> ast_visit::Visitor<'v> for EarlyContext<'a> {
 // Output any lints that were previously added to the session.
 impl<'a, 'tcx> IdVisitingOperation for LateContext<'a, 'tcx> {
     fn visit_id(&mut self, id: ast::NodeId) {
-        match self.sess().lints.borrow_mut().remove(&id) {
-            None => {}
-            Some(lints) => {
-                debug!("LateContext::visit_id: id={:?} lints={:?}", id, lints);
-                for (lint_id, span, msg) in lints {
-                    self.span_lint(lint_id.lint, span, &msg[..])
+        let lints_opt = { self.sess().lints.borrow_mut().remove(&id) };
+        if let Some(lints) = lints_opt {
+            debug!("LateContext::visit_id: id={:?} lints={:?}", id, lints);
+            for (lint_id, span, msg) in lints {
+                let level_src = match self.level_src(lint_id.lint) {
+                    None => continue,
+                    Some(pair) => pair,
+                };
+                if let Some(&mut (ref p_id, ref p_msg, p_lvlsrc, ref mut group)) =
+                       self.collapsed_lints.last_mut() {
+                    if *p_id == lint_id && *p_msg == msg && p_lvlsrc == level_src {
+                        group.push(span);
+                        continue;
+                    }
                 }
+                self.collapsed_lints.push((lint_id, msg, level_src, vec![span]));
             }
         }
     }
 }
 impl<'a> IdVisitingOperation for EarlyContext<'a> {
     fn visit_id(&mut self, id: ast::NodeId) {
-        match self.sess.lints.borrow_mut().remove(&id) {
-            None => {}
-            Some(lints) => {
-                for (lint_id, span, msg) in lints {
-                    self.span_lint(lint_id.lint, span, &msg[..])
+        let lints_opt = { self.sess().lints.borrow_mut().remove(&id) };
+        if let Some(lints) = lints_opt {
+            for (lint_id, span, msg) in lints {
+                let level_src = match self.level_src(lint_id.lint) {
+                    None => continue,
+                    Some(pair) => pair,
+                };
+                if let Some(&mut (ref p_id, ref p_msg, p_lvl_src, ref mut group)) =
+                       self.collapsed_lints.last_mut() {
+                    if *p_id == lint_id && *p_msg == msg && p_lvl_src== level_src {
+                        group.push(span);
+                        continue;
+                    }
                 }
+                self.collapsed_lints.push((lint_id, msg, level_src, vec![span]));
             }
         }
     }
@@ -1255,6 +1289,12 @@ pub fn check_crate(tcx: &ty::ctxt, access_levels: &AccessLevels) {
         hir_visit::walk_crate(cx, krate);
     });
 
+    for (lint_id, msg, lvl_src, spans) in mem::replace(&mut cx.collapsed_lints, Vec::new()) {
+        for msp in tcx.sess.codemap().group_spans(spans) {
+            raw_emit_lint(&tcx.sess, cx.lints(), lint_id.lint, lvl_src, Some(msp), &msg);
+        }
+    }
+
     // If we missed any lints added to the session, then there's a bug somewhere
     // in the iteration code.
     for (id, v) in tcx.sess.lints.borrow().iter() {
@@ -1285,6 +1325,12 @@ pub fn check_ast_crate(sess: &Session, krate: &ast::Crate) {
 
         ast_visit::walk_crate(cx, krate);
     });
+
+    for (lint_id, msg, lvl_src, spans) in mem::replace(&mut cx.collapsed_lints, Vec::new()) {
+        for msp in sess.codemap().group_spans(spans) {
+            raw_emit_lint(sess, cx.lints(), lint_id.lint, lvl_src, Some(msp), &msg);
+        }
+    }
 
     // Put the lint store back in the session.
     mem::replace(&mut *sess.lint_store.borrow_mut(), cx.lints);

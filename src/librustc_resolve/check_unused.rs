@@ -67,7 +67,7 @@ impl<'a, 'b, 'tcx> UnusedImportCheckVisitor<'a, 'b, 'tcx> {
             self.session.add_lint(lint::builtin::UNUSED_IMPORTS,
                                   id,
                                   span,
-                                  "unused import".to_string());
+                                  "unused import(s)".to_string());
         }
 
         let mut def_map = self.def_map.borrow_mut();
@@ -150,7 +150,7 @@ impl<'a, 'b, 'v, 'tcx> Visitor<'v> for UnusedImportCheckVisitor<'a, 'b, 'tcx> {
                                 .add_lint(lint::builtin::UNUSED_IMPORTS,
                                           item.id,
                                           p.span,
-                                          "unused import".to_string());
+                                          "unused import(s)".to_string());
                         }
                     }
                 }
