@@ -202,7 +202,7 @@ impl<'a, 'tcx> Clean<Crate> for visit_ast::RustdocVisitor<'a, 'tcx> {
 
         let src = match cx.input {
             Input::File(ref path) => path.clone(),
-            Input::Str(_) => PathBuf::new() // FIXME: this is wrong
+            Input::Str { ref file, .. } => PathBuf::from(file.clone()),
         };
 
         Crate {

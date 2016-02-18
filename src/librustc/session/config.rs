@@ -172,7 +172,10 @@ pub enum Input {
     /// Load source from file
     File(PathBuf),
     /// The string is the source
-    Str(String)
+    Str {
+        input: String,
+        file: String,
+    },
 }
 
 impl Input {
@@ -180,7 +183,7 @@ impl Input {
         match *self {
             Input::File(ref ifile) => ifile.file_stem().unwrap()
                                            .to_str().unwrap().to_string(),
-            Input::Str(_) => "rust_out".to_string(),
+            Input::Str { .. } => "rust_out".to_string(),
         }
     }
 }

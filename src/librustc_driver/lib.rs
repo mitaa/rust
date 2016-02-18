@@ -221,7 +221,8 @@ fn make_input(free_matches: &[String]) -> Option<(Input, Option<PathBuf>)> {
         if ifile == "-" {
             let mut src = String::new();
             io::stdin().read_to_string(&mut src).unwrap();
-            Some((Input::Str(src), None))
+            Some((Input::Str { input: src, file: driver::anon_src() },
+                  None))
         } else {
             Some((Input::File(PathBuf::from(ifile)),
                   Some(PathBuf::from(ifile))))
@@ -509,7 +510,7 @@ impl RustcDefaultCalls {
                         .unwrap();
                     println!("{}", String::from_utf8(v).unwrap());
                 }
-                &Input::Str(_) => {
+                &Input::Str { .. } => {
                     early_error(ErrorOutputType::default(), "cannot list metadata for stdin");
                 }
             }
@@ -925,9 +926,9 @@ fn parse_crate_attrs(sess: &Session, input: &Input) -> Vec<ast::Attribute> {
         Input::File(ref ifile) => {
             parse::parse_crate_attrs_from_file(ifile, Vec::new(), &sess.parse_sess)
         }
-        Input::Str(ref src) => {
-            parse::parse_crate_attrs_from_source_str(driver::anon_src().to_string(),
-                                                     src.to_string(),
+        Input::Str { ref input, ref file } => {
+            parse::parse_crate_attrs_from_source_str(file.clone(),
+                                                     input.clone(),
                                                      Vec::new(),
                                                      &sess.parse_sess)
         }

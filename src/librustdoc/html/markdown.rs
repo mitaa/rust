@@ -380,7 +380,7 @@ pub fn render(w: &mut fmt::Formatter, s: &str, print_toc: bool) -> fmt::Result {
     }
 }
 
-pub fn find_testable_code(doc: &str, tests: &mut ::test::Collector) {
+pub fn find_testable_code(doc: &str, file: &str, tests: &mut ::test::Collector) {
     extern fn block(_ob: *mut hoedown_buffer,
                     text: *const hoedown_buffer,
                     lang: *const hoedown_buffer,
@@ -397,13 +397,16 @@ pub fn find_testable_code(doc: &str, tests: &mut ::test::Collector) {
             if !block_info.rust { return }
             let text = (*text).as_bytes();
             let opaque = (*data).opaque as *mut hoedown_html_renderer_state;
-            let tests = &mut *((*opaque).opaque as *mut ::test::Collector);
+            let (ref mut tests, ref file) =
+                *((*opaque).opaque as *mut (&mut ::test::Collector, &str));
+
             let text = str::from_utf8(text).unwrap();
             let lines = text.lines().map(|l| {
                 stripped_filtered_line(l).unwrap_or(l)
             });
             let text = lines.collect::<Vec<&str>>().join("\n");
-            tests.add_test(text.to_owned(),
+            tests.add_test(text.to_string(),
+                           file.to_string(),
                            block_info.should_panic, block_info.no_run,
                            block_info.ignore, block_info.test_harness,
                            block_info.compile_fail);
@@ -415,7 +418,7 @@ pub fn find_testable_code(doc: &str, tests: &mut ::test::Collector) {
                      level: libc::c_int, data: *const hoedown_renderer_data) {
         unsafe {
             let opaque = (*data).opaque as *mut hoedown_html_renderer_state;
-            let tests = &mut *((*opaque).opaque as *mut ::test::Collector);
+            let (ref mut tests, _) = *((*opaque).opaque as *mut (&mut ::test::Collector, &str));
             if text.is_null() {
                 tests.register_header("", level as u32);
             } else {
@@ -425,6 +428,7 @@ pub fn find_testable_code(doc: &str, tests: &mut ::test::Collector) {
             }
         }
     }
+    let mut data = (tests, file);
 
     unsafe {
         let ob = hoedown_buffer_new(DEF_OUNIT);
@@ -432,8 +436,7 @@ pub fn find_testable_code(doc: &str, tests: &mut ::test::Collector) {
         (*renderer).blockcode = Some(block);
         (*renderer).header = Some(header);
         (*((*renderer).opaque as *mut hoedown_html_renderer_state)).opaque
-                = tests as *mut _ as *mut libc::c_void;
-
+                = &mut data as *mut _ as *mut libc::c_void;
         let document = hoedown_document_new(renderer, HOEDOWN_EXTENSIONS, 16);
         hoedown_document_render(document, ob, doc.as_ptr(),
                                 doc.len() as libc::size_t);

@@ -176,14 +176,18 @@ fn scrape_test_config(krate: &::rustc_front::hir::Crate) -> TestOptions {
     return opts;
 }
 
-fn runtest(test: &str, cratename: &str, cfgs: Vec<String>, libs: SearchPaths,
+fn runtest(test: &str, file: &str, cratename: &str, cfgs: Vec<String>,
+           libs: SearchPaths,
            externs: core::Externs,
            should_panic: bool, no_run: bool, as_test_harness: bool,
            compile_fail: bool, opts: &TestOptions) {
     // the test harness wants its own `main` & top level functions, so
     // never wrap the test in `fn main() { ... }`
     let test = maketest(test, Some(cratename), as_test_harness, opts);
-    let input = config::Input::Str(test.to_string());
+    let input = config::Input::Str {
+        input: test.to_owned(),
+        file: file.to_owned(),
+    };
     let mut outputs = HashMap::new();
     outputs.insert(OutputType::Exe, None);
 
@@ -411,7 +415,7 @@ impl Collector {
         }
     }
 
-    pub fn add_test(&mut self, test: String,
+    pub fn add_test(&mut self, test: String, file: String,
                     should_panic: bool, no_run: bool, should_ignore: bool,
                     as_test_harness: bool, compile_fail: bool) {
         let name = if self.use_headers {
@@ -436,6 +440,7 @@ impl Collector {
             },
             testfn: testing::DynTestFn(Box::new(move|| {
                 runtest(&test,
+                        &file,
                         &cratename,
                         cfgs,
                         libs,
@@ -485,7 +490,7 @@ impl DocFolder for Collector {
 
         if let Some(doc) = item.doc_value() {
             self.cnt = 0;
-            markdown::find_testable_code(doc, &mut *self);
+            markdown::find_testable_code(doc, &item.source.filename, &mut *self);
         }
 
         let ret = self.fold_item_recur(item);
