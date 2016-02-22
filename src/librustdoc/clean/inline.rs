@@ -332,6 +332,7 @@ pub fn build_impl(cx: &DocContext,
                     inner: clean::AssociatedConstItem(
                         type_scheme.ty.clean(cx),
                         default,
+                        true,
                     ),
                     source: clean::Span::empty(),
                     attrs: vec![],

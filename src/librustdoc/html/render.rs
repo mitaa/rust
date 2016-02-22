@@ -1008,6 +1008,10 @@ impl DocFolder for Cache {
         // Index this method for searching later on
         if let Some(ref s) = item.name {
             let (parent, is_method) = match item.inner {
+                clean::AssociatedConstItem(_, _, true) => {
+                    // skip associated consts in impls
+                    ((None, None), false)
+                }
                 clean::AssociatedTypeItem(..) |
                 clean::AssociatedConstItem(..) |
                 clean::TyMethodItem(..) |
@@ -2189,7 +2193,7 @@ fn render_assoc_item(w: &mut fmt::Formatter, meth: &clean::Item,
                    m.abi, &m.generics, &m.self_, &m.decl,
                    link)
         }
-        clean::AssociatedConstItem(ref ty, ref default) => {
+        clean::AssociatedConstItem(ref ty, ref default, _) => {
             assoc_const(w, meth, ty, default.as_ref())
         }
         clean::AssociatedTypeItem(ref bounds, ref default) => {
@@ -2562,7 +2566,7 @@ fn render_impl(w: &mut fmt::Formatter, cx: &Context, i: &Impl, link: AssocItemLi
                 try!(write!(w, "type {} = {}", name, tydef.type_));
                 try!(write!(w, "</code></h4>\n"));
             }
-            clean::AssociatedConstItem(ref ty, ref default) => {
+            clean::AssociatedConstItem(ref ty, ref default, _) => {
                 let id = derive_id(format!("associatedconstant.{}", name));
                 try!(write!(w, "<h4 id='{}' class='{}'><code>", id, shortty(item)));
                 try!(assoc_const(w, item, ty, default.as_ref()));

@@ -375,7 +375,7 @@ pub enum ItemEnum {
     ForeignStaticItem(Static),
     MacroItem(Macro),
     PrimitiveItem(PrimitiveType),
-    AssociatedConstItem(Type, Option<String>),
+    AssociatedConstItem(Type, Option<String>, bool /* is impl item */),
     AssociatedTypeItem(Vec<TyParamBound>, Option<Type>),
     DefaultImplItem(DefaultImpl),
 }
@@ -1252,7 +1252,8 @@ impl Clean<Item> for hir::TraitItem {
             hir::ConstTraitItem(ref ty, ref default) => {
                 AssociatedConstItem(ty.clean(cx),
                                     default.as_ref().map(|expr|
-                                                         expr.span.to_src(cx)))
+                                                         expr.span.to_src(cx)),
+                                    false)
             }
             hir::MethodTraitItem(ref sig, Some(_)) => {
                 MethodItem(sig.clean(cx))
@@ -1282,7 +1283,8 @@ impl Clean<Item> for hir::ImplItem {
         let inner = match self.node {
             hir::ImplItemKind::Const(ref ty, ref expr) => {
                 AssociatedConstItem(ty.clean(cx),
-                                    Some(expr.span.to_src(cx)))
+                                    Some(expr.span.to_src(cx)),
+                                    true)
             }
             hir::ImplItemKind::Method(ref sig, _) => {
                 MethodItem(sig.clean(cx))
@@ -2776,7 +2778,7 @@ impl<'tcx> Clean<Item> for ty::AssociatedConst<'tcx> {
             source: DUMMY_SP.clean(cx),
             name: Some(self.name.clean(cx)),
             attrs: Vec::new(),
-            inner: AssociatedConstItem(self.ty.clean(cx), None),
+            inner: AssociatedConstItem(self.ty.clean(cx), None, false),
             visibility: None,
             def_id: self.def_id,
             stability: None,
