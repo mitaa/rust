@@ -197,7 +197,7 @@ impl str {
         core_str::StrExt::len(self)
     }
 
-    /// Returns true if this slice has a length of zero bytes.
+    /// Returns `true` if this slice has a length of zero bytes.
     ///
     /// # Examples
     ///
