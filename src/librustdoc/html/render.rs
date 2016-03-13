@@ -115,6 +115,9 @@ pub struct Context {
     /// The base-URL of the issue tracker for when an item has been tagged with
     /// an issue number.
     pub issue_tracker_base_url: Option<String>,
+    /// The given user css file which allow to customize the generated
+    /// documentation theme.
+    pub css_file_extension: Option<PathBuf>,
 }
 
 /// Indicates where an external crate can be found.
@@ -404,7 +407,8 @@ pub fn derive_id(candidate: String) -> String {
 pub fn run(mut krate: clean::Crate,
            external_html: &ExternalHtml,
            dst: PathBuf,
-           passes: HashSet<String>) -> Result<(), Error> {
+           passes: HashSet<String>,
+           css_file_extension: Option<PathBuf>) -> Result<(), Error> {
     let src_root = match krate.src.parent() {
         Some(p) => p.to_path_buf(),
         None => PathBuf::new(),
@@ -426,6 +430,7 @@ pub fn run(mut krate: clean::Crate,
         local_sources: HashMap::new(),
         render_redirect_pages: false,
         issue_tracker_base_url: None,
+        css_file_extension: css_file_extension,
     };
 
     try_err!(mkdir(&cx.dst), &cx.dst);
@@ -639,6 +644,17 @@ fn write_shared(cx: &Context,
                include_bytes!("static/rustdoc.css")));
     try!(write(cx.dst.join("main.css"),
                include_bytes!("static/styles/main.css")));
+    if let Some(ref css) = cx.css_file_extension {
+        let mut content = String::new();
+        let css = css.as_path();
+        let mut f = try_err!(File::open(css), css);
+
+        try_err!(f.read_to_string(&mut content), css);
+        let css = cx.dst.join("theme.css");
+        let css = css.as_path();
+        let mut f = try_err!(File::create(css), css);
+        try_err!(write!(f, "{}", &content), css);
+    }
     try!(write(cx.dst.join("normalize.css"),
                include_bytes!("static/normalize.css")));
     try!(write(cx.dst.join("FiraSans-Regular.woff"),
@@ -925,7 +941,8 @@ impl<'a> SourceCollector<'a> {
             keywords: BASIC_KEYWORDS,
         };
         try!(layout::render(&mut w, &self.cx.layout,
-                            &page, &(""), &Source(contents)));
+                            &page, &(""), &Source(contents),
+                            self.cx.css_file_extension.is_some()));
         try!(w.flush());
         self.cx.local_sources.insert(p, href);
         Ok(())
@@ -1291,7 +1308,8 @@ impl Context {
             if !cx.render_redirect_pages {
                 try!(layout::render(&mut writer, &cx.layout, &page,
                                     &Sidebar{ cx: cx, item: it },
-                                    &Item{ cx: cx, item: it }));
+                                    &Item{ cx: cx, item: it },
+                                    cx.css_file_extension.is_some()));
             } else {
                 let mut url = repeat("../").take(cx.current.len())
                                            .collect::<String>();
