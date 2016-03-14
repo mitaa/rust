@@ -63,8 +63,10 @@ use std::sync::mpsc::channel;
 use externalfiles::ExternalHtml;
 use serialize::Decodable;
 use serialize::json::{self, Json};
+use rustc::session::early_error;
 use rustc::session::search_paths::SearchPaths;
-use rustc::session::config::ErrorOutputType;
+use rustc::session::config::{get_unstable_features_setting, ErrorOutputType};
+use syntax::feature_gate::UnstableFeatures;
 
 // reexported from `clean` so it can be easily updated with the mod itself
 pub use clean::SCHEMA_VERSION;
@@ -187,6 +189,7 @@ pub fn opts() -> Vec<getopts::OptGroup> {
         optopt("e", "extend-css",
                "to redefine some css rules with a given file to generate doc with your \
                 own theme", "PATH"),
+        optmulti("Z", "", "internal and debugging options (only on nightly build)", "FLAG"),
     )
 }
 
@@ -194,6 +197,24 @@ pub fn usage(argv0: &str) {
     println!("{}",
              getopts::usage(&format!("{} [options] <input>", argv0),
                             &opts()));
+}
+
+fn is_unstable_flag_enabled(nightly_build: bool, has_z_unstable_options: bool,
+                                  flag_name: &str) {
+    // check if unstable for --extend-css option
+    match if !nightly_build {
+        Some(format!("the option `{}` is only accepted on the nightly compiler", flag_name))
+    } else if !has_z_unstable_options {
+        Some(format!("the `-Z unstable-options` flag must also be passed to enable the flag `{}`",
+                     flag_name))
+    } else {
+        None
+    } {
+        Some(e) => {
+            early_error(ErrorOutputType::default(), &e)
+        }
+        None => {}
+    }
 }
 
 pub fn main_args(args: &[String]) -> isize {
@@ -258,7 +279,24 @@ pub fn main_args(args: &[String]) -> isize {
     let css_file_extension = matches.opt_str("e").map(|s| PathBuf::from(&s));
     let cfgs = matches.opt_strs("cfg");
 
+    // we now check if unstable options are allowed and if we're in a nightly build
+    let mut has_z_unstable_options = false;
+    for flag in matches.opt_strs("Z").iter() {
+        if *flag != "unstable-options" {
+            println!("Unknown flag for `Z` option: {}", flag);
+            return 1;
+        } else if *flag == "unstable-options" {
+            has_z_unstable_options = true;
+        }
+    }
+    let nightly_build = get_unstable_features_setting();
+    let nightly_build = match nightly_build {
+                            UnstableFeatures::Allow | UnstableFeatures::Cheat => true,
+                            _ => false,
+                        };
+
     if let Some(ref p) = css_file_extension {
+        is_unstable_flag_enabled(nightly_build, has_z_unstable_options, "extend-css");
         if !p.is_file() {
             println!("{}", "--extend-css option must take a css file as input");
             return 1;
