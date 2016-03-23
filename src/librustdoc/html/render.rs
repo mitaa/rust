@@ -2459,7 +2459,8 @@ fn render_impl(w: &mut fmt::Formatter, cx: &Context, i: &Impl, link: AssocItemLi
     fn doctraititem(w: &mut fmt::Formatter, cx: &Context, item: &clean::Item,
                     link: AssocItemLink, render_static: bool,
                     outer_version: Option<&str>) -> fmt::Result {
-        let name = item.name.as_ref().unwrap();
+        let item_ty = shortty(item);
+        let id = derive_id(format!("{}.{}", item_ty, item.name.as_ref().unwrap()));
 
         let is_static = match item.inner {
             clean::MethodItem(ref method) => method.self_ == SelfTy::SelfStatic,
@@ -2471,8 +2472,7 @@ fn render_impl(w: &mut fmt::Formatter, cx: &Context, i: &Impl, link: AssocItemLi
             clean::MethodItem(..) | clean::TyMethodItem(..) => {
                 // Only render when the method is not static or we allow static methods
                 if !is_static || render_static {
-                    let id = derive_id(format!("method.{}", name));
-                    try!(write!(w, "<h4 id='{}' class='{}'>", id, shortty(item)));
+                    try!(write!(w, "<h4 id='{}' class='{}'>", id, item_ty));
                     try!(render_stability_since_raw(w, item.stable_since(), outer_version));
                     try!(write!(w, "<code>"));
                     try!(render_assoc_item(w, item, link));
@@ -2480,26 +2480,22 @@ fn render_impl(w: &mut fmt::Formatter, cx: &Context, i: &Impl, link: AssocItemLi
                 }
             }
             clean::TypedefItem(ref tydef, _) => {
-                let id = derive_id(format!("associatedtype.{}", name));
-                try!(write!(w, "<h4 id='{}' class='{}'><code>", id, shortty(item)));
+                try!(write!(w, "<h4 id='{}' class='{}'><code>", id, item_ty));
                 try!(write!(w, "type {} = {}", name, tydef.type_));
                 try!(write!(w, "</code></h4>\n"));
             }
             clean::AssociatedConstItem(ref ty, ref default) => {
-                let id = derive_id(format!("associatedconstant.{}", name));
-                try!(write!(w, "<h4 id='{}' class='{}'><code>", id, shortty(item)));
+                try!(write!(w, "<h4 id='{}' class='{}'><code>", id, item_ty));
                 try!(assoc_const(w, item, ty, default.as_ref()));
                 try!(write!(w, "</code></h4>\n"));
             }
             clean::ConstantItem(ref c) => {
-                let id = derive_id(format!("associatedconstant.{}", name));
-                try!(write!(w, "<h4 id='{}' class='{}'><code>", id, shortty(item)));
+                try!(write!(w, "<h4 id='{}' class='{}'><code>", id, item_ty));
                 try!(assoc_const(w, item, &c.type_, Some(&c.expr)));
                 try!(write!(w, "</code></h4>\n"));
             }
             clean::AssociatedTypeItem(ref bounds, ref default) => {
-                let id = derive_id(format!("associatedtype.{}", name));
-                try!(write!(w, "<h4 id='{}' class='{}'><code>", id, shortty(item)));
+                try!(write!(w, "<h4 id='{}' class='{}'><code>", id, item_ty));
                 try!(assoc_type(w, item, bounds, default));
                 try!(write!(w, "</code></h4>\n"));
             }
