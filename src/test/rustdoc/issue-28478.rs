@@ -1,4 +1,4 @@
-// Copyright 2015 The Rust Project Developers. See the COPYRIGHT
+// Copyright 2016 The Rust Project Developers. See the COPYRIGHT
 // file at the top-level directory of this distribution and at
 // http://rust-lang.org/COPYRIGHT.
 //
@@ -8,14 +8,20 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-// aux-build:issue-17476.rs
-// ignore-cross-compile
+// @has issue_28478/trait.Bar.html
+pub trait Bar {
+    fn bar();
+}
 
-extern crate issue_17476;
-
+// @has issue_28478/struct.Foo.html
 pub struct Foo;
 
-// @has issue_17476/struct.Foo.html \
-//      '//*[@href="http://example.com/issue_17476/trait.Foo.html#tymethod.foo"]' \
-//      'foo'
-impl issue_17476::Foo for Foo {}
+impl Foo {
+    // @has - '//*[@href="#method.foo"]' 'foo'
+    pub fn foo() {}
+}
+
+impl Bar for Foo {
+    // @has - '//*[@href="../issue_28478/trait.Bar.html#tymethod.bar"]' 'bar'
+    fn bar() {}
+}

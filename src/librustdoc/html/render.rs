@@ -2085,7 +2085,13 @@ fn render_assoc_item(w: &mut fmt::Formatter, meth: &clean::Item,
         let href = match link {
             AssocItemLink::Anchor => anchor,
             AssocItemLink::GotoSource(did) => {
-                href(did).map(|p| format!("{}{}", p.0, anchor)).unwrap_or(anchor)
+                // We're creating a link from an impl-item to the corresponding
+                // trait-item and need to map the anchored type accordingly.
+                let shortty = match shortty(it) {
+                    ItemType::Method => ItemType::TyMethod,
+                    s@_ => s,
+                };
+                href(did).map(|p| format!("{}#{}.{}", p.0, shortty, name)).unwrap_or(anchor)
             }
         };
         let vis_constness = match get_unstable_features_setting() {
