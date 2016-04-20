@@ -436,8 +436,7 @@ tr.result span.primitive::after { content: ' (primitive type)'; font-style: ital
     width: 100%;
     position: sticky;
     z-index: 1;
-    padding: 5px;
-    padding-left: 10px;
+    padding: 5px 10px;
     background: #e1e1e1;
     border-radius: 10px;
     border-style: hidden;
