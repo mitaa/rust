@@ -40,6 +40,7 @@
     var TY_PRIMITIVE = itemTypes.indexOf("primitive");
 
     $('.js-only').removeClass('js-only');
+    $('.fixedsticky').fixedsticky();
 
     function getQueryStringParams() {
         var params = {};

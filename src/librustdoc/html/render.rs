@@ -648,10 +648,14 @@ fn write_shared(cx: &Context,
           include_bytes!("static/jquery-2.1.4.min.js"))?;
     write(cx.dst.join("main.js"),
           include_bytes!("static/main.js"))?;
+    write(cx.dst.join("fixedsticky.js"),
+          include_bytes!("static/fixedsticky.js"))?;
     write(cx.dst.join("playpen.js"),
           include_bytes!("static/playpen.js"))?;
     write(cx.dst.join("rustdoc.css"),
           include_bytes!("static/rustdoc.css"))?;
+    write(cx.dst.join("fixedsticky.css"),
+      include_bytes!("static/fixedsticky.css"))?;
     write(cx.dst.join("main.css"),
           include_bytes!("static/styles/main.css"))?;
     if let Some(ref css) = cx.shared.css_file_extension {
@@ -1501,7 +1505,7 @@ impl<'a> fmt::Display for Item<'a> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         debug_assert!(!self.item.is_stripped());
         // Write the breadcrumb trail header for the top
-        write!(fmt, "\n<h1 class='fqn'><span class='in-band'>")?;
+        write!(fmt, "\n<div><h1 class='fixedsticky'><span class='in-band'>")?;
         match self.item.inner {
             clean::ModuleItem(ref m) => if m.is_crate {
                     write!(fmt, "Crate ")?;
@@ -1706,7 +1710,7 @@ fn item_module(w: &mut fmt::Formatter, cx: &Context,
                 ItemType::AssociatedType  => ("associated-types", "Associated Types"),
                 ItemType::AssociatedConst => ("associated-consts", "Associated Constants"),
             };
-            write!(w, "<h2 id='{id}' class='section-header'>\
+            write!(w, "</div><div><h2 id='{id}' class='fixedsticky'>\
                        <a href=\"#{id}\">{name}</a></h2>\n<table>",
                    id = derive_id(short.to_owned()), name = name)?;
         }
@@ -1760,7 +1764,7 @@ fn item_module(w: &mut fmt::Formatter, cx: &Context,
         }
     }
 
-    write!(w, "</table>")
+    write!(w, "</table></div>")
 }
 
 fn short_stability(item: &clean::Item, cx: &Context, show_reason: bool) -> Option<String> {
@@ -1837,7 +1841,8 @@ fn item_constant(w: &mut fmt::Formatter, cx: &Context, it: &clean::Item,
            name = it.name.as_ref().unwrap(),
            typ = c.type_,
            init = Initializer(&c.expr))?;
-    document(w, cx, it)
+    document(w, cx, it)?;
+    write!(w, "</div>")
 }
 
 fn item_static(w: &mut fmt::Formatter, cx: &Context, it: &clean::Item,
@@ -1849,7 +1854,8 @@ fn item_static(w: &mut fmt::Formatter, cx: &Context, it: &clean::Item,
            name = it.name.as_ref().unwrap(),
            typ = s.type_,
            init = Initializer(&s.expr))?;
-    document(w, cx, it)
+    document(w, cx, it)?;
+    write!(w, "</div>")
 }
 
 fn item_function(w: &mut fmt::Formatter, cx: &Context, it: &clean::Item,
@@ -1870,7 +1876,8 @@ fn item_function(w: &mut fmt::Formatter, cx: &Context, it: &clean::Item,
            where_clause = WhereClause(&f.generics),
            decl = f.decl)?;
     render_stability_since_raw(w, it.stable_since(), None)?;
-    document(w, cx, it)
+    document(w, cx, it)?;
+    write!(w, "</div>")
 }
 
 fn item_trait(w: &mut fmt::Formatter, cx: &Context, it: &clean::Item,
@@ -1959,7 +1966,7 @@ fn item_trait(w: &mut fmt::Formatter, cx: &Context, it: &clean::Item,
 
     if !types.is_empty() {
         write!(w, "
-            <h2 id='associated-types'>Associated Types</h2>
+            </div><div><h2 class='fixedsticky' id='associated-types'>Associated Types</h2>
             <div class='methods'>
         ")?;
         for t in &types {
@@ -1970,7 +1977,7 @@ fn item_trait(w: &mut fmt::Formatter, cx: &Context, it: &clean::Item,
 
     if !consts.is_empty() {
         write!(w, "
-            <h2 id='associated-const'>Associated Constants</h2>
+            </div><div><h2 class='fixedsticky' id='associated-const'>Associated Constants</h2>
             <div class='methods'>
         ")?;
         for t in &consts {
@@ -1982,7 +1989,7 @@ fn item_trait(w: &mut fmt::Formatter, cx: &Context, it: &clean::Item,
     // Output the documentation for each function individually
     if !required.is_empty() {
         write!(w, "
-            <h2 id='required-methods'>Required Methods</h2>
+            </div><div><h2 class='fixedsticky' id='required-methods'>Required Methods</h2>
             <div class='methods'>
         ")?;
         for m in &required {
@@ -1992,7 +1999,7 @@ fn item_trait(w: &mut fmt::Formatter, cx: &Context, it: &clean::Item,
     }
     if !provided.is_empty() {
         write!(w, "
-            <h2 id='provided-methods'>Provided Methods</h2>
+            </div><div><h2 class='fixedsticky' id='provided-methods'>Provided Methods</h2>
             <div class='methods'>
         ")?;
         for m in &provided {
@@ -2006,7 +2013,7 @@ fn item_trait(w: &mut fmt::Formatter, cx: &Context, it: &clean::Item,
 
     let cache = cache();
     write!(w, "
-        <h2 id='implementors'>Implementors</h2>
+        </div><div><h2 class='fixedsticky' id='implementors'>Implementors</h2>
         <ul class='item-list' id='implementors-list'>
     ")?;
     match cache.implementors.get(&it.def_id) {
@@ -2019,7 +2026,7 @@ fn item_trait(w: &mut fmt::Formatter, cx: &Context, it: &clean::Item,
         }
         None => {}
     }
-    write!(w, "</ul>")?;
+    write!(w, "</ul></div>")?;
     write!(w, r#"<script type="text/javascript" async
                          src="{root_path}/implementors/{path}/{ty}.{name}.js">
                  </script>"#,
@@ -2213,7 +2220,8 @@ fn item_struct(w: &mut fmt::Formatter, cx: &Context, it: &clean::Item,
             write!(w, "</table>")?;
         }
     }
-    render_assoc_items(w, cx, it, it.def_id, AssocItemRender::All)
+    render_assoc_items(w, cx, it, it.def_id, AssocItemRender::All)?;
+    write!(w, "</div>")
 }
 
 fn item_enum(w: &mut fmt::Formatter, cx: &Context, it: &clean::Item,
@@ -2308,7 +2316,7 @@ fn item_enum(w: &mut fmt::Formatter, cx: &Context, it: &clean::Item,
         write!(w, "</table>")?;
     }
     render_assoc_items(w, cx, it, it.def_id, AssocItemRender::All)?;
-    Ok(())
+    write!(w, "</div>")
 }
 
 fn render_attributes(w: &mut fmt::Formatter, it: &clean::Item) -> fmt::Result {
@@ -2418,11 +2426,11 @@ fn render_assoc_items(w: &mut fmt::Formatter,
     if !non_trait.is_empty() {
         let render_header = match what {
             AssocItemRender::All => {
-                write!(w, "<h2 id='methods'>Methods</h2>")?;
+                write!(w, "</div><div><h2 class='fixedsticky' id='methods'>Methods</h2>")?;
                 true
             }
             AssocItemRender::DerefFor { trait_, type_ } => {
-                write!(w, "<h2 id='deref-methods'>Methods from \
+                write!(w, "</div><div><h2 class='fixedsticky' id='deref-methods'>Methods from \
                                {}&lt;Target={}&gt;</h2>", trait_, type_)?;
                 false
             }
@@ -2442,7 +2450,7 @@ fn render_assoc_items(w: &mut fmt::Formatter,
         if let Some(impl_) = deref_impl {
             render_deref_methods(w, cx, impl_, containing_item)?;
         }
-        write!(w, "<h2 id='implementations'>Trait \
+        write!(w, "</div><div><h2 class = 'fixedsticky' id='implementations'>Trait \
                    Implementations</h2>")?;
         let (derived, manual): (Vec<_>, Vec<&Impl>) = traits.iter().partition(|i| {
             i.impl_.derived
@@ -2607,7 +2615,8 @@ fn item_typedef(w: &mut fmt::Formatter, cx: &Context, it: &clean::Item,
            where_clause = WhereClause(&t.generics),
            type_ = t.type_)?;
 
-    document(w, cx, it)
+    document(w, cx, it)?;
+    write!(w, "</div>")
 }
 
 impl<'a> fmt::Display for Sidebar<'a> {
@@ -2684,14 +2693,16 @@ fn item_macro(w: &mut fmt::Formatter, cx: &Context, it: &clean::Item,
                                                      Some("macro"),
                                                      None))?;
     render_stability_since_raw(w, it.stable_since(), None)?;
-    document(w, cx, it)
+    document(w, cx, it)?;
+    write!(w, "</div>")
 }
 
 fn item_primitive(w: &mut fmt::Formatter, cx: &Context,
                   it: &clean::Item,
                   _p: &clean::PrimitiveType) -> fmt::Result {
     document(w, cx, it)?;
-    render_assoc_items(w, cx, it, it.def_id, AssocItemRender::All)
+    render_assoc_items(w, cx, it, it.def_id, AssocItemRender::All)?;
+    write!(w, "</div>")
 }
 
 const BASIC_KEYWORDS: &'static str = "rust, rustlang, rust-lang";

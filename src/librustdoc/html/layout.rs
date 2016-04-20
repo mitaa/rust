@@ -49,6 +49,7 @@ r##"<!DOCTYPE html>
     <title>{title}</title>
 
     <link rel="stylesheet" type="text/css" href="{root_path}rustdoc.css">
+    <link rel="stylesheet" type="text/css" href="{root_path}fixedsticky.css">
     <link rel="stylesheet" type="text/css" href="{root_path}main.css">
     {css_extension}
 
@@ -138,6 +139,7 @@ r##"<!DOCTYPE html>
         window.playgroundUrl = "{play_url}";
     </script>
     <script src="{root_path}jquery.js"></script>
+    <script src="{root_path}fixedsticky.js"></script>
     <script src="{root_path}main.js"></script>
     {play_js}
     <script defer src="{root_path}search-index.js"></script>
