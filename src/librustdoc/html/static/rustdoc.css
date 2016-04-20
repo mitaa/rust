@@ -443,6 +443,10 @@ tr.result span.primitive::after { content: ' (primitive type)'; font-style: ital
     box-shadow: 0px 3px 15px rgba(34,34,34,0.6);
 }
 
+:target {
+    padding-top: 55px;
+    margin-top: -55px;
+}
 
 body.blur > :not(#help) {
     filter: blur(8px);
