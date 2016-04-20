@@ -168,7 +168,7 @@ nav.sub {
     min-height: 100%;
 }
 
-.content, nav { max-width: 960px; }
+.content, nav, .fixedsticky { max-width: 960px; }
 
 /* Everything else */
 
@@ -433,6 +433,7 @@ tr.result span.primitive::after { content: ' (primitive type)'; font-style: ital
 
 .fixedsticky {
     top: 0px;
+    width: 100%;
     position: sticky;
     z-index: 1;
     padding: 5px;
