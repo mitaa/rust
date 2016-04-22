@@ -2534,10 +2534,10 @@ fn render_impl(w: &mut fmt::Formatter, cx: &Context, i: &Impl, link: AssocItemLi
                 if !is_static || render_static {
                     let id = derive_id(format!("{}.{}", shortty, name));
                     write!(w, "<h4 id='{}' class='{}'>", id, shortty)?;
-                    render_stability_since_raw(w, item.stable_since(), outer_version)?;
                     write!(w, "<code>")?;
                     render_assoc_item(w, item, link.anchor(&id))?;
                     write!(w, "</code></h4>\n")?;
+                    render_stability_since_raw(w, item.stable_since(), outer_version)?;
                 }
             }
             clean::TypedefItem(ref tydef, _) => {
